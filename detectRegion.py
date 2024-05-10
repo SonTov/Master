@@ -1,10 +1,10 @@
 from datetime import timedelta
-from functions import normalize
+from functions import normalize, geographic_to_magnetic
 import numpy as np
 
 
 class DetectRegion:
-    def __init__(self, dataset_ne, dataset_fac, region_parameters=None, normalize_data=False):
+    def __init__(self, dataset_ne, dataset_fac, region_parameters=None, normalize_data=False, magnetic=False):
         if region_parameters is None:
             region_parameters = {'time_interval': 2, 'threshold': 0.5, 'region_num': False, 'total_region': False}
 
@@ -21,6 +21,34 @@ class DetectRegion:
         self.ne_region = self.detect_region(self.ne, self.region_parameters['region_num'])
         self.fac_region = self.detect_region(self.fac, self.region_parameters['region_num'])
 
+        time_interval = {}
+
+        if isinstance(self.ne_region, dict):
+            for key in self.ne_region.keys():
+                time_interval_region = {}
+                time = self.timestamp_16hz[self.ne_region[key] != None]
+                time_interval_region['start'] = "{}h {}m {}s".format(np.min(time).hour, np.min(time).minute, np.min(time).second)  # np.min(time)
+                time_interval_region['stop'] = "{}h {}m {}s".format(np.max(time).hour, np.max(time).minute, np.max(time).second)  # np.max(time)
+                time_interval[key] = time_interval_region
+
+        else:
+            time = self.timestamp_16hz[self.ne_region != None]
+            time_interval['start'] = "{}h {}m {}s".format(np.min(time).hour, np.min(time).minute, np.min(time).second)  # np.min(time)
+            time_interval['stop'] = "{}h {}m {}s".format(np.max(time).hour, np.max(time).minute, np.max(time).second)  # np.max(time)
+
+        self.time_interval = time_interval
+
+
+        self.magnetic_coordinates = None
+        if magnetic:
+            altitude = dataset_fac['Radius'][self.fac_region != None]
+            latitude = dataset_fac['Latitude'][self.fac_region != None]
+            longitude = dataset_fac['Longitude'][self.fac_region != None]
+            time = dataset_fac['Timestamp'][self.fac_region != None]
+
+            self.magnetic_coordinates = geographic_to_magnetic(altitude, latitude, longitude, time)
+
+
     def detect_region(self, arr, region_num):
         """
         Uses the FAC to detect auroral regions and potentially polar cap region.
@@ -34,7 +62,7 @@ class DetectRegion:
                  region_num = integer --> one array containing one region.
                  region_num = tuple --> three arrays, one between regions in tuple (polar cap) and the other two as these regions
         """
-        if isinstance(region_num, tuple) and self.normalize_data == 'regular':
+        if isinstance(region_num, tuple) and self.normalize_data:
             self.normalize_data = 'regular_for_polar_cap'
         if arr.shape == self.fac.shape:
             if (arr == self.fac).all:
@@ -56,8 +84,7 @@ class DetectRegion:
                 new_time_diff.append(time_diff[i - 1])
                 new_time_diff.append(time_diff[i])
             elif i == len(time_diff) - 1:
-                new_time_diff.append(time_diff[
-                                         i])  # Last FAC region have no timedelta to compare with, but knows it's > threshold so is in time_diff
+                new_time_diff.append(time_diff[i])  # Last FAC region have no timedelta to compare with, but knows it's > threshold so is in time_diff
         result = np.zeros(len(timestamp))
         max_range = int(np.ceil(len(new_time_diff) / 2))  # Round up
         for i in range(max_range):
@@ -104,4 +131,4 @@ class DetectRegion:
                 return {'A': pre_polar_cap, 'B': polar_cap, 'C': post_polar_cap}
 
     def return_region(self):
-        return {'Ne': self.ne_region, 'FAC': self.fac_region}
+        return {'Ne': self.ne_region, 'FAC': self.fac_region, 'time_interval': self.time_interval, 'magnetic_coordinates': self.magnetic_coordinates}
