@@ -2,6 +2,17 @@ from datetime import datetime
 
 
 def load_day(year, month, day, instance, merged_region):
+    """
+    Loads one of the days (cases)
+    set merged_region to True to use the entire polar region
+
+    :param year: Int
+    :param month: Int
+    :param day: Int
+    :param instance: Int
+    :param merged_region: Boolean
+    :return:
+    """
 
     dataset = {}
 

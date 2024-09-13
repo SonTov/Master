@@ -5,6 +5,14 @@ import numpy as np
 
 class DetectRegion:
     def __init__(self, dataset_ne, dataset_fac, region_parameters=None, normalize_data=False, magnetic=False):
+        """
+
+        :param dataset_ne: dataset for electron density (dictionary)
+        :param dataset_fac: dataset for field-aligned currents (dictionary)
+        :param region_parameters: threshold, time between peaks, etc... (dictionary)
+        :param normalize_data: (Boolean)
+        :param magnetic: magnetic coordinates (Boolean)
+        """
         if region_parameters is None:
             region_parameters = {'time_interval': 2, 'threshold': 0.5, 'region_num': False, 'total_region': False}
 
@@ -27,14 +35,14 @@ class DetectRegion:
             for key in self.ne_region.keys():
                 time_interval_region = {}
                 time = self.timestamp_16hz[self.ne_region[key] != None]
-                time_interval_region['start'] = "{}h {}m {}s".format(np.min(time).hour, np.min(time).minute, np.min(time).second)  # np.min(time)
-                time_interval_region['stop'] = "{}h {}m {}s".format(np.max(time).hour, np.max(time).minute, np.max(time).second)  # np.max(time)
+                time_interval_region['start'] = "{}h {}m {}s".format(np.min(time).hour, np.min(time).minute, np.min(time).second)
+                time_interval_region['stop'] = "{}h {}m {}s".format(np.max(time).hour, np.max(time).minute, np.max(time).second)
                 time_interval[key] = time_interval_region
 
         else:
             time = self.timestamp_16hz[self.ne_region != None]
-            time_interval['start'] = "{}h {}m {}s".format(np.min(time).hour, np.min(time).minute, np.min(time).second)  # np.min(time)
-            time_interval['stop'] = "{}h {}m {}s".format(np.max(time).hour, np.max(time).minute, np.max(time).second)  # np.max(time)
+            time_interval['start'] = "{}h {}m {}s".format(np.min(time).hour, np.min(time).minute, np.min(time).second)
+            time_interval['stop'] = "{}h {}m {}s".format(np.max(time).hour, np.max(time).minute, np.max(time).second)
 
         self.time_interval = time_interval
 

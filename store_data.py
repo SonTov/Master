@@ -11,6 +11,11 @@ def run(date, instance, processing_parameters=None, plotting_trajectory=False,
         plotting_region=False, plotting_structure_function=False,
         plotting_ratios=False, plotting_psd=False, plotting_pdf=False,
         write_to_csv=False):
+    """
+
+    Applies all other classes to display and calculate using various tools
+    write_to_csv stores as datafram in .csv files.
+    """
 
     if processing_parameters is None:
         processing_parameters = {'merged_region': True,
@@ -61,7 +66,7 @@ def run(date, instance, processing_parameters=None, plotting_trajectory=False,
     active_day_FAC = gd.GetData(day_start, day_stop, 'FAC').time()
 
     gd.GetData(day_start, day_stop, 'FAC').get_info()
-    #gd.GetData(day_start, day_stop, 'Ne').get_info()
+    gd.GetData(day_start, day_stop, 'Ne').get_info()
 
     inactive_day_16Hz = gd.GetData(day_start_inactive, day_stop_inactive, 'Ne').time()
     inactive_day_FAC = gd.GetData(day_start_inactive, day_stop_inactive, 'FAC').time()
@@ -70,7 +75,6 @@ def run(date, instance, processing_parameters=None, plotting_trajectory=False,
     inactive_day_north = dp.DataProcessing(inactive_day_16Hz, inactive_day_FAC, fac_parameters_north_inactive)
     active_day_south = dp.DataProcessing(active_day_16Hz, active_day_FAC, fac_parameters_south)
     inactive_day_south = dp.DataProcessing(inactive_day_16Hz, inactive_day_FAC, fac_parameters_south_inactive)
-
 
     if processing_parameters['print_time_interval']:
         if comparison != 'South' or comparison != 'ActiveInactiveSouth':
@@ -128,7 +132,8 @@ def run(date, instance, processing_parameters=None, plotting_trajectory=False,
                 north = active_day_north.calculate_structure_function(region=region, seconds=t, m=m, normalize_data=normalize_data)
                 south = active_day_south.calculate_structure_function(region=region, seconds=t, m=m, normalize_data=normalize_data)
             case 'ActiveInactiveNorth':
-                north = active_day_north.calculate_structure_function(region=region, seconds=t, m=m, normalize_data=normalize_data)
+                north = active_day_north.calculate_structure_function(region=region, seconds=t, m=m, normalize_data=normalize_data, name='A')
+                #breakpoint()
                 north_inactive = inactive_day_north.calculate_structure_function(region=region, seconds=t, m=m, normalize_data=normalize_data)
             case 'ActiveInactiveSouth':
                 south = active_day_south.calculate_structure_function(region=region, seconds=t, m=m, normalize_data=normalize_data)
@@ -326,48 +331,61 @@ def run(date, instance, processing_parameters=None, plotting_trajectory=False,
         fig_ratio.savefig(f'plots/{name}')
         plt.close(fig_ratio)
 
-    if plotting_psd:  # Fix Frequency
-        name = f'Power_Spectral_Density_{region}_{date}_{instance}'
-        fig_psd, axes_psd = plt.subplots(figsize=(12, 8), tight_layout=True)
-
-        active_psd_north = active_day_north.calculate_power_spectral_density(region)
-        inactive_psd_north = inactive_day_north.calculate_power_spectral_density(region)
-        active_psd_south = active_day_south.calculate_power_spectral_density(region)
-        inactive_psd_south = inactive_day_south.calculate_power_spectral_density(region)
-
-        pt.plot_power_spectral_density(active_psd_north, fig_psd, axes_psd, 'North', p_value=True)
-        pt.plot_power_spectral_density(inactive_psd_north, fig_psd, axes_psd, 'North Inactive', p_value=True)
-
-        pt.plot_power_spectral_density(active_psd_south, fig_psd, axes_psd, 'South', p_value=True)
-        pt.plot_power_spectral_density(inactive_psd_south, fig_psd, axes_psd, 'South Inactive', p_value=True)
-
-        #active_psd_interval = active_day_north.calculate_power_spectral_density(region, start_time=348, stop_time=355)
-        #pt.plot_power_spectral_density(active_psd_interval, fig_psd, axes_psd, 'Active 348-355', p_value=True)
-
+    if plotting_psd:
+        dt = 0
+        time_interval = None
+        p_value = False
+        inertial_sub_range = False
+        name = f'Power_Spectral_Density_Active_{region}_{date}_{instance}'
+        fig_psd, axes_psd = plt.subplots(figsize=(9, 6), tight_layout=True)
+        active_psd_north = active_day_north.calculate_power_spectral_density(region, dt=dt, time_interval=time_interval)
+        pt.plot_power_spectral_density(active_psd_north, fig_psd, axes_psd, 'High Activity Day', p_value=p_value, region=region, dt=dt, inertial_sub_range=inertial_sub_range)
         axes_psd.grid()
         fig_psd.savefig(f'plots/{name}')
         plt.close(fig_psd)
 
+
+        name = f'Power_Spectral_Density_Inactive_{region}_{date}_{instance}'
+        fig_psd, axes_psd = plt.subplots(figsize=(9, 6), tight_layout=True)
+        inactive_psd_north = inactive_day_north.calculate_power_spectral_density(region, dt=dt, time_interval=time_interval)
+        pt.plot_power_spectral_density(inactive_psd_north, fig_psd, axes_psd, 'Low Activity Day', p_value=p_value, color='C1', region=region, dt=dt, inertial_sub_range=inertial_sub_range)
+        axes_psd.grid()
+        fig_psd.savefig(f'plots/{name}')
+        plt.close(fig_psd)
+
+        from scipy.integrate import simpson
+        print(simpson(active_psd_north['power_spectral_density'], active_psd_north['frequency']))
+        print(simpson(inactive_psd_north['power_spectral_density'], inactive_psd_north['frequency']))
+
+        #active_psd_south = active_day_south.calculate_power_spectral_density(region)
+        #inactive_psd_south = inactive_day_south.calculate_power_spectral_density(region)
+
+        #pt.plot_power_spectral_density(active_psd_south, fig_psd, axes_psd, 'South', p_value=True)
+        #pt.plot_power_spectral_density(inactive_psd_south, fig_psd, axes_psd, 'South Inactive', p_value=True)
+
+        #active_psd_interval = active_day_north.calculate_power_spectral_density(region, start_time=348, stop_time=355)
+        #pt.plot_power_spectral_density(active_psd_interval, fig_psd, axes_psd, 'Active 348-355', p_value=True)
+
     if plotting_pdf:
         match comparison:
             case 'NorthSouth':
-                fig_north_active_pdf, axes_north_active_pdf = plt.subplots(figsize=(12, 8))
-                fig_south_active_pdf, axes_south_active_pdf = plt.subplots(figsize=(12, 8))
+                fig_north_active_pdf, axes_north_active_pdf = plt.subplots(figsize=(9, 6))
+                fig_south_active_pdf, axes_south_active_pdf = plt.subplots(figsize=(9, 6))
             case 'ActiveInactiveNorth':
-                fig_north_active_pdf, axes_north_active_pdf = plt.subplots(figsize=(12, 8))
-                fig_north_inactive_pdf, axes_north_inactive_pdf = plt.subplots(figsize=(12, 8))
+                fig_north_active_pdf, axes_north_active_pdf = plt.subplots(figsize=(9, 6))
+                fig_north_inactive_pdf, axes_north_inactive_pdf = plt.subplots(figsize=(9, 6))
             case 'ActiveInactiveSouth':
-                fig_south_active_pdf, axes_south_active_pdf = plt.subplots(figsize=(12, 8))
-                fig_south_inactive_pdf, axes_south_inactive_pdf = plt.subplots(figsize=(12, 8))
+                fig_south_active_pdf, axes_south_active_pdf = plt.subplots(figsize=(9, 6))
+                fig_south_inactive_pdf, axes_south_inactive_pdf = plt.subplots(figsize=(9, 6))
             case 'all':
-                fig_north_active_pdf, axes_north_active_pdf = plt.subplots(figsize=(12, 8))
-                fig_north_inactive_pdf, axes_north_inactive_pdf = plt.subplots(figsize=(12, 8))
-                fig_south_active_pdf, axes_south_active_pdf = plt.subplots(figsize=(12, 8))
-                fig_south_inactive_pdf, axes_south_inactive_pdf = plt.subplots(figsize=(12, 8))
+                fig_north_active_pdf, axes_north_active_pdf = plt.subplots(figsize=(9, 6))
+                fig_north_inactive_pdf, axes_north_inactive_pdf = plt.subplots(figsize=(9, 6))
+                fig_south_active_pdf, axes_south_active_pdf = plt.subplots(figsize=(9, 6))
+                fig_south_inactive_pdf, axes_south_inactive_pdf = plt.subplots(figsize=(9, 6))
             case 'North':
-                fig_north_active_pdf, axes_north_active_pdf = plt.subplots(figsize=(12, 8))
+                fig_north_active_pdf, axes_north_active_pdf = plt.subplots(figsize=(9, 6))
             case 'South':
-                fig_south_active_pdf, axes_south_active_pdf = plt.subplots(figsize=(12, 8))
+                fig_south_active_pdf, axes_south_active_pdf = plt.subplots(figsize=(9, 6))
 
 
         name_active_north = f'Probability_Density_Fluctuations_North_{region}_{date}_{instance}'
@@ -376,43 +394,42 @@ def run(date, instance, processing_parameters=None, plotting_trajectory=False,
         name_inactive_south = f'Probability_Density_Fluctuations_South_Inactive_{region}_{date}_{instance}'
 
         try:
-            active_day_north.plot_probability_density_fluctuations(fig_north_active_pdf, axes_north_active_pdf, region, limit=(1E-3, 5))
+            active_day_north.plot_probability_density_fluctuations(fig_north_active_pdf, axes_north_active_pdf, region, limit=(1E-3, 5), name='High Activity Day')
             axes_north_active_pdf.grid()
             fig_north_active_pdf.savefig(f'plots/{name_active_north}')
             plt.close(fig_north_active_pdf)
         except UnboundLocalError:
             pass
         try:
-            inactive_day_north.plot_probability_density_fluctuations(fig_north_inactive_pdf, axes_north_inactive_pdf, region, limit=(1E-3, 5))
+            inactive_day_north.plot_probability_density_fluctuations(fig_north_inactive_pdf, axes_north_inactive_pdf, region, limit=(1E-3, 5), name='Low Activity Day')
+            axes_north_inactive_pdf.grid()
             fig_north_inactive_pdf.savefig(f'plots/{name_inactive_north}')
             plt.close(fig_north_inactive_pdf)
-            axes_north_inactive_pdf.grid()
         except UnboundLocalError:
             pass
         try:
-            active_day_south.plot_probability_density_fluctuations(fig_south_active_pdf, axes_south_active_pdf, region, limit=(1E-3, 5))
+            active_day_south.plot_probability_density_fluctuations(fig_south_active_pdf, axes_south_active_pdf, region, limit=(1E-3, 5), name='High Activity Day')
             axes_south_active_pdf.grid()
             fig_south_active_pdf.savefig(f'plots/{name_active_south}')
             plt.close(fig_south_active_pdf)
         except UnboundLocalError:
             pass
         try:
-            inactive_day_south.plot_probability_density_fluctuations(fig_south_inactive_pdf, axes_south_inactive_pdf, region, limit=(1E-3, 5))
+            inactive_day_south.plot_probability_density_fluctuations(fig_south_inactive_pdf, axes_south_inactive_pdf, region, limit=(1E-3, 5), name='Low Activity Day')
             axes_south_inactive_pdf.grid()
             fig_south_inactive_pdf.savefig(f'plots/{name_inactive_south}')
             plt.close(fig_south_inactive_pdf)
         except UnboundLocalError:
             pass
 
-
     if write_to_csv:
 
         if write_to_pole == 'North':
-            active_north = active_day_north.calculate_structure_function(region=region, seconds=t, m=(2, 4), normalize_data=normalize_data, calculate_empirical_flatness=False)
-            inactive_north = inactive_day_north.calculate_structure_function(region=region, seconds=t, m=(2, 4), normalize_data=normalize_data, calculate_empirical_flatness=False)
+            active_north = active_day_north.calculate_structure_function(region=region, seconds=t, m=(2, 4), normalize_data=False, calculate_empirical_flatness=False)
+            inactive_north = inactive_day_north.calculate_structure_function(region=region, seconds=t, m=(2, 4), normalize_data=False, calculate_empirical_flatness=False)
         elif write_to_pole == 'South':
-            active_north = active_day_south.calculate_structure_function(region=region, seconds=t, m=(2, 4), normalize_data=normalize_data, calculate_empirical_flatness=False)
-            inactive_north = inactive_day_south.calculate_structure_function(region=region, seconds=t, m=(2, 4), normalize_data=normalize_data, calculate_empirical_flatness=False)
+            active_north = active_day_south.calculate_structure_function(region=region, seconds=t, m=(2, 4), normalize_data=False, calculate_empirical_flatness=False)
+            inactive_north = inactive_day_south.calculate_structure_function(region=region, seconds=t, m=(2, 4), normalize_data=False, calculate_empirical_flatness=False)
 
         try:
             active = {'structure_function_M2': active_north['structure_function'][2],
@@ -448,23 +465,12 @@ def run(date, instance, processing_parameters=None, plotting_trajectory=False,
 
 if __name__ == '__main__':
 
+
     #date = [year, month, day]
 
-    #date = [2014, 11, 4]
-    #date = [2014, 12, 7]
-    #date = [2015, 11, 7]
-    #date = [2015, 11, 8]
-    #date = [2015, 11, 9]
-    #date = [2015, 11, 10]
-    #date = [2015, 11, 11]
-    #date = [2015, 12, 5]
-    #date = [2015, 12, 6]
-    #date = [2015, 12, 11]
-    #date = [2015, 12, 14]
-    #date = [2015, 12, 20]
-    #date = [2015, 12, 31]
 
-
+    # All available dates during high activity days
+    # Corresponding low activity day is automatically detected
     dates = [[2014, 11, 4],
              [2014, 12, 7],
              [2015, 11, 7],
@@ -480,7 +486,7 @@ if __name__ == '__main__':
              [2015, 12, 31]]
 
     instances = [1, 2, 3]
-    region_name = 'C'
+    region_name = 'B'
     m = (2, 4)
     pole = 'North'
     # comparison = 'all', 'North' 'South' 'NorthSouth'(only active) 'ActiveInactiveNorth' 'ActiveInactiveSouth'
@@ -491,18 +497,18 @@ if __name__ == '__main__':
 
     processing_parameters = {'merged_region': True,
                              'region_name': region_name,
-                             'tau_interval': 'auto_half',
-                             'm': m,
+                             'tau_interval': 1,
+                             'm': 2,
                              'comparison': 'ActiveInactiveNorth',
                              'divide_structure_function': False,
-                             'print_time_interval': False,
-                             'target': False,
+                             'print_time_interval': True,
+                             'target': True,
                              'polar_region': 'all',
                              'normalize': False,
                              'write_to_pole': pole}
 
-    #[2015, 12, 5], 3
+    #Uncomment and indent to iterate through all dates
     #for date in dates:
     #    for instance in instances:
-    run([2014, 11, 4], 1, processing_parameters, plotting_trajectory=True, plotting_region=False, plotting_structure_function=False,
+    run([2015, 12, 31], 1, processing_parameters, plotting_trajectory=False, plotting_region=True, plotting_structure_function=False,
         plotting_ratios=False, plotting_psd=False, plotting_pdf=False, write_to_csv=False)

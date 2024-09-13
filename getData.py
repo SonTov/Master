@@ -6,6 +6,10 @@ import numpy as np
 
 
 class GetData:
+    """
+    Loads data from .CDF files
+    Returns dictionary between specified start and stop time
+    """
     def __init__(self, start_time, stop_time, measured_data='FAC'):
         self.start_time = start_time
         self.stop_time = stop_time
@@ -28,10 +32,17 @@ class GetData:
             print('Error: No timestamp')
 
     def get_info(self):
+        """
+        Returns available information
+        """
         print(self.cdf)
         return
 
     def time(self, arr=None):
+        """
+        Returns dictionary corresponding to specified timestamps.
+        If no timestamp, return available timestamp instead
+        """
         if arr is None:
             arr = self.timestamp
         idx = np.where((self.start_time <= arr) & (arr <= self.stop_time))[0]
